@@ -118,8 +118,6 @@ protected:
   IndexSet locally_owned_dofs;
   IndexSet locally_relevant_dofs;
   IndexSet locally_owned_dofs0;
-  IndexSet locally_owned_dofs0_total;
-  IndexSet locally_owned_dofs0_e;
   std::vector<IndexSet> block_locally_owned_dofs;
   std::vector<IndexSet> block_locally_relevant_dofs;
   IndexSet locally_owned_dofs_PC;
@@ -153,8 +151,6 @@ protected:
   // ----------SPARSITY PATTERN----------
   BlockSparsityPattern sparsity_pattern_PC;
   BlockSparsityPattern sparsity_pattern_dense;
-  BlockSparsityPattern sparsity_pattern_cmp_sx_L;
-  BlockSparsityPattern sparsity_pattern_cmp_dx_L;
   SparsityPattern sparsity_pattern_stochastic;
   BlockSparsityPattern sparsity_pattern_PC_total;
   BlockDynamicSparsityPattern dsp_solution;
@@ -164,9 +160,6 @@ protected:
   std::vector<SparseMatrix<double>> system_matrix_NL;
   VectorTypeMPI solution_vec;
   VectorType serial_solution_vec;
-  MatrixTypeMPI current_solution;
-  VectorTypeMPI current_solution_vec; 
-  MatrixTypeMPI system_rhs;
   VectorTypeMPI system_rhs_vec;
   MatrixTypeMPI jacobian;
 
@@ -395,10 +388,6 @@ void StationaryCoanda::setup_system(){
   locally_owned_dofs = dof_handler.locally_owned_dofs();
   locally_relevant_dofs = DoFTools::extract_locally_relevant_dofs(dof_handler);
   locally_owned_dofs0 = IndexSet(dof_u);
-  locally_owned_dofs0_total = IndexSet(dof_u);
-  locally_owned_dofs0_e = IndexSet(dof_u);
-  for (unsigned int i=0; i<dof_u; i++)
-    locally_owned_dofs0_total.add_index(i);
   for (const auto &i : locally_owned_dofs) {
     if (i<dof_u)
       locally_owned_dofs0.add_index(i);
@@ -455,53 +444,8 @@ void StationaryCoanda::setup_system(){
   dsp_solution.reinit(n_elem_solution, n_elem_NPC);
   for (unsigned int i=0;i<(dof_u+dof_p)*N_PC;i++)
     dsp_solution.add(i/N_PC,i%N_PC);
-  
-  std::vector<unsigned int> n_elem_cmp_L;
-  for (unsigned int i=0;i<2;i++) {
-    n_elem_cmp_L.emplace_back(dof_u);
-    n_elem_cmp_L.emplace_back(dof_p);
-  }
-  BlockDynamicSparsityPattern dsp_cmp_dx_L(n_elem_cmp_L, n_elem_NPC);
-  for (unsigned int i=0;i<(dof_u+dof_p)*2*N_PC;i++)
-    dsp_cmp_dx_L.add(i/N_PC,i%N_PC);
-
-  BlockDynamicSparsityPattern dsp_cmp_sx_L(n_elem_solution, n_elem_cmp_L);
-  for (unsigned int i=0;i<dof_u;i++){
-    SparsityPattern::iterator row_begin = sparsity_pattern_PC.block(0,0).begin(i);
-    SparsityPattern::iterator row_end = sparsity_pattern_PC.block(0,0).end(i);
-    for (dealii::SparsityPattern::iterator it = row_begin; it != row_end; ++it){
-      unsigned int j = it->column();
-      dsp_cmp_sx_L.block(0,0).add(i, j);
-      dsp_cmp_sx_L.block(0,2).add(i, j);
-    }
-    row_begin = sparsity_pattern_PC.block(0,1).begin(i);
-    row_end = sparsity_pattern_PC.block(0,1).end(i);
-    for (dealii::SparsityPattern::iterator it = row_begin; it != row_end; ++it){
-      unsigned int j = it->column();
-      dsp_cmp_sx_L.block(0,1).add(i, j);
-      dsp_cmp_sx_L.block(0,3).add(i, j);
-    }
-  }
-  for (unsigned int i=0;i<dof_p;i++){
-    SparsityPattern::iterator row_begin = sparsity_pattern_PC.block(1,0).begin(i);
-    SparsityPattern::iterator row_end = sparsity_pattern_PC.block(1,0).end(i);
-    for (dealii::SparsityPattern::iterator it = row_begin; it != row_end; ++it){
-      unsigned int j = it->column();
-      dsp_cmp_sx_L.block(1,0).add(i, j);
-      dsp_cmp_sx_L.block(1,2).add(i, j);
-    }
-    row_begin = sparsity_pattern_PC.block(1,1).begin(i);
-    row_end = sparsity_pattern_PC.block(1,1).end(i);
-    for (dealii::SparsityPattern::iterator it = row_begin; it != row_end; ++it){
-      unsigned int j = it->column();
-      dsp_cmp_sx_L.block(1,1).add(i, j);
-      dsp_cmp_sx_L.block(1,3).add(i, j);
-    }
-  }
 
   sparsity_pattern_dense.copy_from(dsp_solution);
-  sparsity_pattern_cmp_sx_L.copy_from(dsp_cmp_sx_L);
-  sparsity_pattern_cmp_dx_L.copy_from(dsp_cmp_dx_L);
   sparsity_pattern_stochastic.copy_from(dsp_stochastic);
 
   // SETUP MATRICES AND VECTORS
@@ -532,13 +476,9 @@ void StationaryCoanda::setup_system(){
   dofs_per_block.push_back(dofs_per_block_PC[0]);
   dofs_per_block.push_back(dofs_per_block_PC[1]);
   solution.reinit(sparsity_pattern_dense);
-  current_solution.reinit(block_locally_owned_dofs, block_locally_owned_dofs_stochastic, dsp_solution, mpi_communicator);
   solution_vec.reinit(block_locally_owned_dofs_PC, mpi_communicator);
-  current_solution_vec.reinit(block_locally_owned_dofs_PC, mpi_communicator);
   serial_solution_vec.reinit(dofs_per_block_PC);
   //-----------------------rhs---------------------------
-  system_rhs.reinit(block_locally_owned_dofs, block_locally_owned_dofs_stochastic, dsp_solution, mpi_communicator);
-  system_rhs.compress(VectorOperation::insert);
   system_rhs_vec.reinit(block_locally_owned_dofs_PC, mpi_communicator);
 
   //-----------------------variance---------------------------
@@ -546,16 +486,14 @@ void StationaryCoanda::setup_system(){
 }
 
 void StationaryCoanda::assemble() {
-  if (verbose)
-    TimerOutput::Scope t(computing_timer, "assemble");
+  TimerOutput::Scope t(computing_timer, "assemble");
   system_matrix_L *= 0;
   system_matrix_L.compress(VectorOperation::add);
   for (unsigned int n=0; n<dof_u; n++) {
     if (locally_owned_dofs.is_element(n))
       system_matrix_NL[n]*=0;
   }
-  system_rhs *= 0;
-  system_rhs.compress(VectorOperation::add);
+  system_rhs_vec = 0;
   QGauss<2> quadrature_formula(fe_degree + 2);
   FEValues<2> fe_values(*fe, quadrature_formula, update_values | update_quadrature_points | update_JxW_values | update_gradients);
 
@@ -608,10 +546,6 @@ void StationaryCoanda::assemble() {
     for (const unsigned int l : fe_values.dof_indices()) {
       for (const unsigned int i : fe_values.dof_indices()) {
 	if (l==0 && locally_owned_dofs.is_element(local_dof_indices[i])) {
-	  system_rhs.add(types::global_dof_index(local_dof_indices[i]),
-			 types::global_dof_index(0),
-			 local_rhs(i)
-			 );
 	  std::vector<unsigned int> idx(1, local_dof_indices[i]%dof_u + (local_dof_indices[i]/dof_u)*dof_u*N_PC);
 	  std::vector<unsigned int> v(1, local_rhs(i));
 	  system_rhs_vec.add(idx, v);
@@ -632,11 +566,9 @@ void StationaryCoanda::assemble() {
     }
   }
   system_matrix_L.compress(VectorOperation::add);
-  system_rhs.compress(VectorOperation::add);
   system_rhs_vec.compress(VectorOperation::add);
   assign_bc_system_mat(constraints_PC);
   system_matrix_L.compress(VectorOperation::insert);
-  system_rhs.compress(VectorOperation::insert);
   system_rhs_vec.compress(VectorOperation::insert);
   return;
 }
@@ -646,8 +578,7 @@ void StationaryCoanda:: compute_linear_residual(const VectorTypeMPI& X, VectorTy
   MatrixType X_mat(sparsity_pattern_dense);
   MatrixType F_mat(sparsity_pattern_dense);
   collect_X(X, X_mat);
-  if (verbose)
-    TimerOutput::Scope t(computing_timer, "compute_linear_residual");
+  TimerOutput::Scope t(computing_timer, "compute_linear_residual");
   
   SparseMatrix<double> dx1(sparsity_pattern_dense.block(0,0));
   SparseMatrix<double> dx2(sparsity_pattern_dense.block(1,0));
@@ -676,8 +607,7 @@ void StationaryCoanda::compute_nonlinear_residual(const VectorTypeMPI& X, Vector
   MatrixType F_mat(sparsity_pattern_dense);
   VectorTypeMPI F_tmp(block_locally_owned_dofs_PC, mpi_communicator);
   collect_X(X, X_mat);
-  if (verbose)
-    TimerOutput::Scope t(computing_timer, "compute_nonlinear_residual");
+  TimerOutput::Scope t(computing_timer, "compute_nonlinear_residual");
   
   DynamicSparsityPattern dsp_tmp1(1, 1);
   dsp_tmp1.add(0,0);
@@ -706,8 +636,7 @@ void StationaryCoanda::compute_nonlinear_residual(const VectorTypeMPI& X, Vector
 }
 
 void StationaryCoanda::assign_bc_system_mat(AffineConstraints<double>& constraints) {
-  if (verbose)
-    TimerOutput::Scope t(computing_timer, "bc");
+  TimerOutput::Scope t(computing_timer, "bc");
   for(unsigned int i=0; i<dof_u; i++){
     if(locally_owned_dofs.is_element(i)) {
       const auto constr = constraints.get_constraint_entries(i);
@@ -728,7 +657,6 @@ void StationaryCoanda::assign_bc_system_mat(AffineConstraints<double>& constrain
 	}
 	for (int j=0;j<N_PC; j++) {
 	  double factor = stochastic_matrix[0](0,j);
-	  system_rhs.set(i, j, factor*inh);
 	  system_rhs_vec[(i + j*dof_u)*(1 - i/(dof_u)) + (dof_u*N_PC + j*dof_p + i%dof_u)*(i/dof_u)] = factor*inh;
 	}
       }
@@ -737,16 +665,14 @@ void StationaryCoanda::assign_bc_system_mat(AffineConstraints<double>& constrain
 }
 
 void StationaryCoanda::collect_X(const VectorTypeMPI& X, MatrixType& X_mat) {
-  if (verbose)
-    TimerOutput::Scope t(computing_timer, "collect_X");
+  TimerOutput::Scope t(computing_timer, "collect_X");
   vec_to_mat(X, X_mat, locally_owned_dofs);
   Utilities::MPI::sum(X_mat.block(0,0), mpi_communicator, X_mat.block(0,0));
   Utilities::MPI::sum(X_mat.block(1,0), mpi_communicator, X_mat.block(1,0));
 }
 
 void StationaryCoanda::distribute_F(const MatrixType& F_mat, VectorTypeMPI& F) {
-  if (verbose)
-    TimerOutput::Scope t(computing_timer, "distribute_F");
+  TimerOutput::Scope t(computing_timer, "distribute_F");
   mat_to_vec(F_mat, F, locally_owned_dofs);
 }
 
@@ -754,8 +680,7 @@ void StationaryCoanda::compute_jacobian(const VectorTypeMPI& X) {
   MatrixType X_mat(sparsity_pattern_dense);
   MatrixType F_mat(sparsity_pattern_dense);
   collect_X(X, X_mat);
-  if (verbose)
-    TimerOutput::Scope t(computing_timer, "jacobian");
+  TimerOutput::Scope t(computing_timer, "jacobian");
 
   DynamicSparsityPattern dsp_tmp(1, 1);
   dsp_tmp.add(0,0);
@@ -916,11 +841,12 @@ void StationaryCoanda::solve_system(int max_iter, std::string solver_type, std::
   assemble();
   if (load_initial_guess) {
     read_blockvector(serial_solution_vec, "initial_guess", n_blocks_to_load);
+    if (Utilities::MPI::this_mpi_process(mpi_communicator)==0)
+      serial_solution_vec.print(std::cout);
     vec_to_vecMPI(serial_solution_vec, solution_vec, locally_owned_dofs_PC);
-    current_solution_vec = solution_vec;
+    solution_vec.compress(VectorOperation::insert);
   }
   else
-  solution_vec.compress(VectorOperation::insert);
   solution_vec=1;
   solution_vec.compress(VectorOperation::insert);
   
@@ -948,6 +874,7 @@ void StationaryCoanda::output_results() {
   DoFRenumbering::component_wise(dof_handler_out, block_component_out);
   
   if (Utilities::MPI::this_mpi_process(mpi_communicator)==0) {
+    serial_solution_vec.print(std::cout);
     write_blockvector(serial_solution_vec,"initial_guess", serial_solution_vec.n_blocks());
     
     std::vector<std::string> solution_names(2,"velocity");

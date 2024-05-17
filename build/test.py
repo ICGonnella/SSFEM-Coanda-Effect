@@ -15,10 +15,10 @@ upload=True
 n_glob_ref=3
 viscosity = 0.9
 viscosity_var = 0.01
-N_PC=2
-load_initial_guess = False
-n_blocks_to_load=8
-grid = "1"
+N_PC=3
+load_initial_guess = True
+n_blocks_to_load=4
+grid = "2"
 verbose = True
 
 max_iter=100
