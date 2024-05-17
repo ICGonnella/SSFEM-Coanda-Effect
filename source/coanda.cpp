@@ -841,8 +841,6 @@ void StationaryCoanda::solve_system(int max_iter, std::string solver_type, std::
   assemble();
   if (load_initial_guess) {
     read_blockvector(serial_solution_vec, "initial_guess", n_blocks_to_load);
-    if (Utilities::MPI::this_mpi_process(mpi_communicator)==0)
-      serial_solution_vec.print(std::cout);
     vec_to_vecMPI(serial_solution_vec, solution_vec, locally_owned_dofs_PC);
     solution_vec.compress(VectorOperation::insert);
   }
@@ -874,7 +872,6 @@ void StationaryCoanda::output_results() {
   DoFRenumbering::component_wise(dof_handler_out, block_component_out);
   
   if (Utilities::MPI::this_mpi_process(mpi_communicator)==0) {
-    serial_solution_vec.print(std::cout);
     write_blockvector(serial_solution_vec,"initial_guess", serial_solution_vec.n_blocks());
     
     std::vector<std::string> solution_names(2,"velocity");
