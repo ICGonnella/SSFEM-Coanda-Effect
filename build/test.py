@@ -13,18 +13,18 @@ libcoanda.init_MPI(sys.argv)
 fe_degree=1
 upload=True
 n_glob_ref=3
-viscosity = 0.9
+viscosity = 1.1
 viscosity_var = 0.01
-N_PC=3
-load_initial_guess = True
-n_blocks_to_load=4
-grid = "2"
-verbose = True
+N_PC=5
+load_initial_guess = False
+n_blocks_to_load=10
+grid = "12"
+verbose  = False
 
 max_iter=100
 solver_type="automatic"
 strategy="newton"
-abs_tolerance=1e-3 
+abs_tolerance=1e-7
 rel_tolerance=1e-15 
 NonlinearSolver="Line Search Based"       
 direction_Method="Newton"                 

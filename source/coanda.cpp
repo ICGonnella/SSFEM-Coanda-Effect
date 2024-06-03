@@ -38,6 +38,8 @@
 #include <deal.II/lac/sparse_ilu.h>
 #include <deal.II/lac/sparse_direct.h>
 #include <deal.II/fe/component_mask.h>
+#include <deal.II/base/mpi_remote_point_evaluation.h>
+#include <deal.II/fe/mapping_fe.h>
 
 #include <stdexcept>
 #include "boundary_conditions.hpp"
@@ -85,6 +87,8 @@ public:
   void init();
   void solve_system(int max_iter, std::string solver_type, std::string strategy, double abs_tolerance, double rel_tolerance, std::string NonlinearSolver, std::string direction_Method, std::string direction_SD_ScalingType, std::string linesearch_Method,double linesearch_FS_FullStep, double linesearch_BT_MinimumStep, double linesearch_BT_DefaultStep, double linesearch_BT_RecoveryStep, double linesearch_BT_MaximumStep, double linesearch_BT_Reduction_Factor);
   void output_results();
+  std::vector<dealii::Tensor<1, 2>> evaluate_v(std::vector<Point<2>> p, VectorType func);
+  std::vector<double> evaluate_p(std::vector<Point<2>> p, VectorType func);
 
 protected:
   MPI_Comm mpi_communicator;
@@ -168,6 +172,9 @@ protected:
 
   // ----------------TIMER----------------- 
   TimerOutput computing_timer;
+
+  //-------------EVALUATE FE FUNCTION--------------
+  Utilities::MPI::RemotePointEvaluation<2> rpe;
 };
 
 StationaryCoanda::StationaryCoanda(int fe_degree_,  bool upload_, int n_glob_ref_, std::string mesh_input_file_, double viscosity_,double var_, int N_PC_, bool load_initial_guess_, int n_blocks_to_load_,std::string output_file_, bool verbose_)
@@ -211,6 +218,28 @@ int StationaryCoanda::get_dof_p() const{
 
 int StationaryCoanda::get_dof_u() const{
   return dof_u;
+}
+
+std::vector<double> StationaryCoanda::evaluate_p(std::vector<Point<2>> p, VectorType func) {
+  DoFHandler<2> dof_handler_p(serial_triangulation);
+  FESystem<2> fe_p(FE_Q<2>(fe_degree), 1);
+  dof_handler_p.distribute_dofs(fe_p);
+  std::vector<unsigned int> block_component_p(1,0);
+  DoFRenumbering::component_wise(dof_handler_p, block_component_p);
+  MappingQ<2> mapping_p(fe_degree);
+  rpe.reinit(p, serial_triangulation, mapping_p);
+  return VectorTools::point_values<1>(rpe, dof_handler_p, func);
+}
+
+std::vector<dealii::Tensor<1, 2>> StationaryCoanda::evaluate_v(std::vector<Point<2>> p, VectorType func) {
+  DoFHandler<2> dof_handler_u(serial_triangulation);
+  FESystem<2> fe_u(FE_Q<2>(fe_degree+1), 2);
+  dof_handler_u.distribute_dofs(fe_u);
+  std::vector<unsigned int> block_component_u(2,0);
+  DoFRenumbering::component_wise(dof_handler_u, block_component_u);
+  MappingQ<2> mapping_u(fe_degree+1);
+  rpe.reinit(p, serial_triangulation, mapping_u);
+  return VectorTools::point_values<2>(rpe, dof_handler_u, func);
 }
 
 void StationaryCoanda::init() {
@@ -474,7 +503,7 @@ void StationaryCoanda::setup_system(){
   //-----------------------solution---------------------------
   std::vector<types::global_dof_index> dofs_per_block;
   dofs_per_block.push_back(dofs_per_block_PC[0]);
-  dofs_per_block.push_back(dofs_per_block_PC[1]);
+  dofs_per_block.push_back(dofs_per_block_PC[N_PC]);
   solution.reinit(sparsity_pattern_dense);
   solution_vec.reinit(block_locally_owned_dofs_PC, mpi_communicator);
   serial_solution_vec.reinit(dofs_per_block_PC);
@@ -844,10 +873,10 @@ void StationaryCoanda::solve_system(int max_iter, std::string solver_type, std::
     vec_to_vecMPI(serial_solution_vec, solution_vec, locally_owned_dofs_PC);
     solution_vec.compress(VectorOperation::insert);
   }
-  else
-  solution_vec=1;
-  solution_vec.compress(VectorOperation::insert);
-  
+  else {
+    solution_vec=0;
+    solution_vec.compress(VectorOperation::insert);
+  }
   solver.solve(solution_vec);
   vec_to_mat(solution_vec, solution, locally_owned_dofs);
   Utilities::MPI::sum(solution.block(0,0), mpi_communicator, solution.block(0,0));
@@ -943,6 +972,49 @@ PYBIND11_MODULE(libcoanda, m) {
 	   [](StationaryCoanda &obj) {
 	     obj.init();
 	   })
+
+      .def("get_point_val",
+	   [](StationaryCoanda &obj, py::array_t<double, py::array::c_style | py::array::forcecast> points, py::array_t<double, py::array::c_style | py::array::forcecast> func, int idx) {
+
+	     auto buffer_info_points = points.request();
+	     size_t rows_points = buffer_info_points.shape[0];
+	     size_t cols_points = buffer_info_points.shape[1];
+	     auto *ptr_points = static_cast<double *>(buffer_info_points.ptr);
+	     std::vector<Point<2>> p_tmp;
+	     for (unsigned int i = 0; i < rows_points; ++i)
+	       p_tmp.push_back(Point<2>(ptr_points[i*2], ptr_points[i*2+1]));
+
+	     auto buffer_info_func = func.request();
+	     size_t rows_func = buffer_info_func.shape[0];
+	     size_t cols_func = buffer_info_func.shape[1];
+	     auto *ptr_func = static_cast<double *>(buffer_info_func.ptr);
+	     VectorType func_tmp_u;
+	     VectorType func_tmp_p;
+	     std::vector<types::global_dof_index> dofs_per_block_u(1,obj.get_dof_u());
+	     std::vector<types::global_dof_index> dofs_per_block_p(1,obj.get_dof_p());
+	     func_tmp_u.reinit(dofs_per_block_u);
+	     func_tmp_p.reinit(dofs_per_block_p);
+	     for (unsigned int i = 0; i < rows_func; ++i) {
+	       if (i<obj.get_dof_u())
+		 func_tmp_u[i] = ptr_func[i*obj.N_PC+idx];
+	       else
+		 func_tmp_p[i-obj.get_dof_u()] = ptr_func[obj.N_PC*obj.get_dof_u() + (i-obj.get_dof_u())*obj.N_PC + idx];
+	     }
+	     size_t cols_v = 3;
+	     py::array_t<double, py::array::c_style | py::array::forcecast> numpy_solution({rows_points, cols_v});	     
+	     auto res_v = obj.evaluate_v(p_tmp, func_tmp_u);
+	     auto res_p = obj.evaluate_p(p_tmp, func_tmp_p);
+	     
+	     auto buffer_info = numpy_solution.request();
+	     double *ptr = static_cast<double *>(buffer_info.ptr);
+
+	     for (unsigned int i = 0; i < cols_points; ++i) {
+	       ptr[3*i] = res_v[i][0];
+	       ptr[3*i + 1] = res_v[i][1];
+	       ptr[3*i + 2] = res_p[i];
+	     }
+	     return numpy_solution;
+     })
 
       .def("get_sol",
      [](StationaryCoanda &obj) {

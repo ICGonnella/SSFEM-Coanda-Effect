@@ -116,7 +116,10 @@ void element_copy(const SparseMatrix<double>& original, SparseMatrix<double>& co
 void read_blockvector(BlockVector<double>& vec, std::string filename, int n_blocks) {
   for (int i=0;i<n_blocks;i++) {
     std::ifstream data_in(filename+std::to_string(i)+".txt");
-    vec.block(i).block_read(data_in);
+    if (i<n_blocks/2)
+      vec.block(i).block_read(data_in);
+    else
+      vec.block(vec.n_blocks()/2 + i%(n_blocks/2)).block_read(data_in);
   }
 }
 
