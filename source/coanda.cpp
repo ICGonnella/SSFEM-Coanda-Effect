@@ -442,7 +442,6 @@ void StationaryCoanda::setup_system(){
     block_locally_owned_dofs_stochastic_mat[Utilities::MPI::this_mpi_process(mpi_communicator)].add_index(i);
   }
   
-  
   // SETUP USEFUL SPARSITY PATTERNS (sparsity_pattern_stochastic, sparsity_pattern_dense, sparsity_pattern_PC)
   
   DynamicSparsityPattern dsp_stochastic(N_PC, N_PC);
@@ -476,7 +475,6 @@ void StationaryCoanda::setup_system(){
 
   sparsity_pattern_dense.copy_from(dsp_solution);
   sparsity_pattern_stochastic.copy_from(dsp_stochastic);
-
   // SETUP MATRICES AND VECTORS
 
   //-----------------------system_matrix_L---------------------------
@@ -489,7 +487,6 @@ void StationaryCoanda::setup_system(){
     if (locally_owned_dofs.is_element(n))
       system_matrix_NL[n].reinit(sparsity_pattern_PC.block(0,0));
   }
-
   //-----------------------jacobian---------------------------
   jacobian.reinit(block_locally_owned_dofs_PC, block_locally_owned_dofs_PC_total, dsp_PC, mpi_communicator);
   jacobian.compress(VectorOperation::insert);

@@ -18,13 +18,13 @@ viscosity_var = 0.01
 N_PC=5
 load_initial_guess = False
 n_blocks_to_load=10
-grid = "12"
+grid = "08"
 verbose  = False
 
 max_iter=100
 solver_type="automatic"
 strategy="newton"
-abs_tolerance=1e-7
+abs_tolerance=1e-10
 rel_tolerance=1e-15 
 NonlinearSolver="Line Search Based"       
 direction_Method="Newton"                 
@@ -100,17 +100,17 @@ c.save_sol()
 
 
 # --------------------------------------- plot polynomials ----------------------------------------------------
-idx_max_var = np.argmax(gpc_var_expansion[1])
-coord_max_var = coord_expansion[1][idx_max_var]
+#idx_max_var = np.argmax(gpc_var_expansion[1])
+#coord_max_var = coord_expansion[1][idx_max_var]
 
-poly = sol_expansion[1][idx_max_var]
-n_reconstructed_samples = 100
-samples = xi.sample(n_reconstructed_samples)
-sol_samples = []
-for sample in samples:
-    sol_samples.append(poly(sample))
+#poly = sol_expansion[1][idx_max_var]
+#n_reconstructed_samples = 100
+#samples = xi.sample(n_reconstructed_samples)
+#sol_samples = []
+#for sample in samples:
+#    sol_samples.append(poly(sample))
 
-plt.plot(samples, sol_samples, 'o')
-plt.grid()
-plt.title(f"{coord_max_var}")
-plt.savefig(f"deg{deg}_mean{viscosity}_var{viscosity_var}_{grid}_{distribution}.pdf")
+#plt.plot(samples, sol_samples, 'o')
+#plt.grid()
+#plt.title(f"{coord_max_var}")
+#plt.savefig(f"deg{deg}_mean{viscosity}_var{viscosity_var}_{grid}_{distribution}.pdf")
