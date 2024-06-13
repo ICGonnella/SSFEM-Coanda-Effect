@@ -13,7 +13,7 @@ libcoanda.init_MPI(sys.argv)
 fe_degree=1
 upload=True
 n_glob_ref=3
-viscosity = 0.8
+viscosity = 0.85
 viscosity_var = 0.01
 N_PC=5
 load_initial_guess = False
@@ -57,16 +57,15 @@ c = libcoanda.StationaryCoanda(fe_degree=fe_degree,
 
 c.initialize()
 # ---------------------------------- set and get parameters ------------------------------------------------
-xi = chaospy.Uniform()
+xi = chaospy.Uniform(-1.73205167,1.73205167)
 
 dof_u = c.get_dof_u()
 dof_p = c.get_dof_p()
 coord = c.get_coord_list()
 coord_expansion = utils.separate(coord, dof_u, dof_p)
-sol = np.load(f"solution_deg{deg}_mean{viscosity}_var{viscosity_var}_{grid}_{distribution}.npy")
+sol = np.load(f"../build/solution_deg{deg}_mean{viscosity}_var{viscosity_var}_{grid}_{distribution}.npy")
 
-p = np.array([[14, 3.75],
-              [15, 3.75]])
+p = np.array([[14, 3.75], [15, 3.75]])
 polynomials_evaluated = np.zeros((len(p)*3, N_PC))
 
 for i in range(N_PC):
@@ -74,7 +73,6 @@ for i in range(N_PC):
     polynomials_evaluated[::3,i] = res[:,0]
     polynomials_evaluated[1::3,i] = res[:,1]
     polynomials_evaluated[2::3,i] = res[:,2]
-
 gpc_form = gpc.GPC_Expansion(deg, xi, polynomials_evaluated)
 gpc_form.expand()
 #sol_expansion = utils.separate(gpc_form.expansion, dof_u, dof_p)
@@ -85,20 +83,22 @@ gpc_mean = gpc_form.compute_mean()
 
 n_reconstructed_samples = 100
 samples = xi.sample(n_reconstructed_samples)
-
+#print(gpc_form.expansion)
 idx=1 #0-->ux  1-->uy  2-->p
+print(gpc_form.expansion)
 for i in range(len(p)):
     poly = gpc_form.expansion[i*3+idx]
+    #print(poly)
     sol_samples = []
     for sample in samples:
-        sol_samples.append(poly(sample))
+        sol_samples.append(poly(sample))# - gpc_mean[i*3+idx])
     fig, ax = plt.subplots(1,1)
     ax.plot(samples, sol_samples, 'o')
     ax.grid()
     ax.set_title(f"{p[i]}")
     if idx==0:
-        fig.savefig(f"deg{deg}_mean{viscosity}_var{viscosity_var}_{grid}_{distribution}_point_{np.round(p[i][0],3)}_{np.round(p[i][1],3)}_ux.pdf")
+        fig.savefig(f"../plots/deg{deg}_mean{viscosity}_var{viscosity_var}_{grid}_{distribution}_point_{np.round(p[i][0],3)}_{np.round(p[i][1],3)}_ux.pdf")
     if idx==1:
-        fig.savefig(f"deg{deg}_mean{viscosity}_var{viscosity_var}_{grid}_{distribution}_point_{np.round(p[i][0],3)}_{np.round(p[i][1],3)}_uy.pdf")
+        fig.savefig(f"../plots/deg{deg}_mean{viscosity}_var{viscosity_var}_{grid}_{distribution}_point_{np.round(p[i][0],3)}_{np.round(p[i][1],3)}_uy.pdf")
     if idx==2:
-        fig.savefig(f"deg{deg}_mean{viscosity}_var{viscosity_var}_{grid}_{distribution}_point_{np.round(p[i][0],3)}_{np.round(p[i][1],3)}_p.pdf")
+        fig.savefig(f"../plots/deg{deg}_mean{viscosity}_var{viscosity_var}_{grid}_{distribution}_point_{np.round(p[i][0],3)}_{np.round(p[i][1],3)}_p.pdf")

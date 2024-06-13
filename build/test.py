@@ -12,8 +12,8 @@ libcoanda.init_MPI(sys.argv)
 
 fe_degree=1
 upload=True
-n_glob_ref=3
-viscosity = 1.1
+n_glob_ref=4
+viscosity = 1.0
 viscosity_var = 0.01
 N_PC=5
 load_initial_guess = False
@@ -24,7 +24,7 @@ verbose  = False
 max_iter=100
 solver_type="automatic"
 strategy="newton"
-abs_tolerance=1e-10
+abs_tolerance=1e-13
 rel_tolerance=1e-15 
 NonlinearSolver="Line Search Based"       
 direction_Method="Newton"                 
@@ -58,9 +58,10 @@ c.initialize()
 # ---------------------------------- set and get parameters ------------------------------------------------
 dof_u = c.get_dof_u()
 dof_p = c.get_dof_p()
-xi = chaospy.Uniform()
+xi = chaospy.Uniform(-1.73205167,1.73205167)
+viscosity_mean = float((chaospy.Uniform()*(np.sqrt(viscosity_var/0.08333))).upper/2)
 tmp = asmat.Stiffness_probamat_assembly( xi, deg, 1)
-mat = [viscosity * tmp.assemble_matrix(2,a = [xi.lower[0]],b = [xi.upper[0]]) + np.sqrt(viscosity_var) * tmp.assemble_matrix(2,func = [lambda x: x],a = [xi.lower[0]],b = [xi.upper[0]]),
+mat = [(viscosity) * tmp.assemble_matrix(2,a = [xi.lower[0]],b = [xi.upper[0]]) + np.sqrt(viscosity_var) * tmp.assemble_matrix(2,func = [lambda x: x],a = [xi.lower[0]],b = [xi.upper[0]]),
        tmp.assemble_matrix(2,a = [xi.lower[0]],b = [xi.upper[0]])] + [
            tmp.assemble_matrix(3,a = [xi.lower[0]],b = [xi.upper[0]])[i] for i in range(N_PC)
        ]

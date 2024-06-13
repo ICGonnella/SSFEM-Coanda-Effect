@@ -975,15 +975,18 @@ PYBIND11_MODULE(libcoanda, m) {
 
 	     auto buffer_info_points = points.request();
 	     size_t rows_points = buffer_info_points.shape[0];
-	     size_t cols_points = buffer_info_points.shape[1];
+	     //size_t cols_points = buffer_info_points.shape[1];
+	     //std::cout<<rows_points<<", "<<cols_points<<std::endl;
 	     auto *ptr_points = static_cast<double *>(buffer_info_points.ptr);
 	     std::vector<Point<2>> p_tmp;
-	     for (unsigned int i = 0; i < rows_points; ++i)
+	     for (unsigned int i = 0; i < rows_points; ++i) {
 	       p_tmp.push_back(Point<2>(ptr_points[i*2], ptr_points[i*2+1]));
-
+	       //std::cout<<p_tmp[i]<<std::endl;
+	     }
 	     auto buffer_info_func = func.request();
 	     size_t rows_func = buffer_info_func.shape[0];
-	     size_t cols_func = buffer_info_func.shape[1];
+	     //size_t cols_func = buffer_info_func.shape[1];
+	     //std::cout<<rows_func<<", "<<cols_func<<std::endl;
 	     auto *ptr_func = static_cast<double *>(buffer_info_func.ptr);
 	     VectorType func_tmp_u;
 	     VectorType func_tmp_p;
@@ -991,7 +994,7 @@ PYBIND11_MODULE(libcoanda, m) {
 	     std::vector<types::global_dof_index> dofs_per_block_p(1,obj.get_dof_p());
 	     func_tmp_u.reinit(dofs_per_block_u);
 	     func_tmp_p.reinit(dofs_per_block_p);
-	     for (unsigned int i = 0; i < rows_func; ++i) {
+	     for (int i = 0; i < rows_func; ++i) {
 	       if (i<obj.get_dof_u())
 		 func_tmp_u[i] = ptr_func[i*obj.N_PC+idx];
 	       else
@@ -1005,7 +1008,7 @@ PYBIND11_MODULE(libcoanda, m) {
 	     auto buffer_info = numpy_solution.request();
 	     double *ptr = static_cast<double *>(buffer_info.ptr);
 
-	     for (unsigned int i = 0; i < cols_points; ++i) {
+	     for (unsigned int i = 0; i < rows_points; ++i) {
 	       ptr[3*i] = res_v[i][0];
 	       ptr[3*i + 1] = res_v[i][1];
 	       ptr[3*i + 2] = res_p[i];
