@@ -80,7 +80,8 @@ public:
   int N_PC;
   MatrixType solution;
   VectorType variance_vec;
-  
+  MPI_Comm mpi_communicator;
+
   std::vector<Point<2>> get_support_points();
   int get_dof_u() const;
   int get_dof_p() const;
@@ -91,7 +92,6 @@ public:
   std::vector<double> evaluate_p(std::vector<Point<2>> p, VectorType func);
 
 protected:
-  MPI_Comm mpi_communicator;
   void make_grid();
   void setup_system();
   void upload_grid();
@@ -1062,6 +1062,11 @@ PYBIND11_MODULE(libcoanda, m) {
       .def("save_sol",
 	   [](StationaryCoanda &obj) {
 	     obj.output_results();
+	   })
+
+      .def("rank",
+	   [](StationaryCoanda &obj) {
+	     return Utilities::MPI::this_mpi_process(obj.mpi_communicator);
 	   })
 
       .def("get_dof_u",

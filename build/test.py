@@ -13,12 +13,12 @@ libcoanda.init_MPI(sys.argv)
 fe_degree=1
 upload=True
 n_glob_ref=4
-viscosity = 1.0
-viscosity_var = 0.01
+viscosity = 0.9
+viscosity_var = 0.001
 N_PC=5
-load_initial_guess = False
+load_initial_guess = True
 n_blocks_to_load=10
-grid = "08"
+grid = "06"
 verbose  = False
 
 max_iter=100
