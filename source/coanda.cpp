@@ -74,7 +74,7 @@ class StationaryCoanda
 {
 public:
   StationaryCoanda(int fe_degree_,  bool upload_, int n_glob_ref_, std::string mesh_input_file_, double viscosity_,double var_, int N_PC_, bool load_initial_guess_, int n_blocks_to_load_,\
-		   std::string output_file_, bool verbose_);
+		   std::string output_file_, bool verbose_, double init_value_);
 
   std::vector<SparseMatrix<double>> stochastic_matrix;
   int N_PC;
@@ -115,6 +115,7 @@ protected:
   int n_blocks_to_load;
   std::string output_file;
   bool verbose;
+  double init_value;
 
   // ----------GRID----------
   parallel::distributed::Triangulation<2> triangulation;
@@ -177,7 +178,7 @@ protected:
   Utilities::MPI::RemotePointEvaluation<2> rpe;
 };
 
-StationaryCoanda::StationaryCoanda(int fe_degree_,  bool upload_, int n_glob_ref_, std::string mesh_input_file_, double viscosity_,double var_, int N_PC_, bool load_initial_guess_, int n_blocks_to_load_,std::string output_file_, bool verbose_)
+StationaryCoanda::StationaryCoanda(int fe_degree_,  bool upload_, int n_glob_ref_, std::string mesh_input_file_, double viscosity_,double var_, int N_PC_, bool load_initial_guess_, int n_blocks_to_load_,std::string output_file_, bool verbose_, double init_value_)
   : mpi_communicator(MPI_COMM_WORLD)
   , triangulation(mpi_communicator, typename Triangulation<2>::MeshSmoothing(Triangulation<2>::smoothing_on_refinement | Triangulation<2>::smoothing_on_coarsening))
   , dof_handler_PC(triangulation)
@@ -201,6 +202,7 @@ StationaryCoanda::StationaryCoanda(int fe_degree_,  bool upload_, int n_glob_ref
   n_blocks_to_load = n_blocks_to_load_;
   output_file = output_file_;
   verbose=verbose_;
+  init_value=init_value_;
 }
 
 std::vector<Point<2>> StationaryCoanda::get_support_points() {
@@ -871,7 +873,7 @@ void StationaryCoanda::solve_system(int max_iter, std::string solver_type, std::
     solution_vec.compress(VectorOperation::insert);
   }
   else {
-    solution_vec=0;
+    solution_vec=init_value;
     solution_vec.compress(VectorOperation::insert);
   }
   solver.solve(solution_vec);
@@ -950,7 +952,8 @@ PYBIND11_MODULE(libcoanda, m) {
 	   bool&,
 	   int&,
 	   std::string&,
-	   bool&>(),
+	   bool&,
+	   double&>(),
 	   py::arg("fe_degree")=1,
 	   py::arg("upload")=true,
 	   py::arg("n_glob_ref")=3,
@@ -962,7 +965,8 @@ PYBIND11_MODULE(libcoanda, m) {
 	   py::arg("load_initial_guess")=false,
 	   py::arg("n_blocks_to_load")=1,
 	   py::arg("output_file")=std::string("coanda.vtu"),
-	   py::arg("verbose")=true
+	   py::arg("verbose")=true,
+	   py::arg("init_value")=0.0
 	   ) 
 
       .def("initialize",
