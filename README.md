@@ -1,6 +1,6 @@
 # SSFEM for Coanda-Effect
 
-Implementation of the SSFEM pipeline relying on the __Deal-II__ C++ library, tested for the Coanda Effect, a benchmark in Fluid Dynamics explained in [_A stochastic perturbation approach to nonlinear bifurcating problems_](https://arxiv.org/abs/2402.16803).
+Implementation of the SSFEM pipeline relying on the __Deal-II__ C++ library tested for the Coanda Effect, a benchmark in Fluid Dynamics explained in [_A stochastic perturbation approach to nonlinear bifurcating problems_](https://arxiv.org/abs/2402.16803).
 
 ![pipeline](./pipeline.png)
 
