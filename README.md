@@ -1,6 +1,6 @@
 # SSFEM for Coanda-Effect
 
-This repository implements the SSFEM ![pipeline](./pipeline.png) relying on the deal-II c++ library, tested in the case descripted in [A stochastic perturbation approach to nonlinear bifurcating problems](https://arxiv.org/abs/2402.16803)
+This repository implements the SSFEM pipeline relying on the deal-II c++ library, and it is tested for the Coanda Effect, a benchmark in Fluid Dynamics descripted in the paper ``A stochastic perturbation approach to nonlinear bifurcating problems" [https://arxiv.org/abs/2402.16803](https://arxiv.org/abs/2402.16803) ![pipeline](./pipeline.png)
 
 ### Activate the ssfem python environment
 
