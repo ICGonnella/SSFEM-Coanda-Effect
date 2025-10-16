@@ -16,6 +16,7 @@ void vec_to_vecMPI(const BlockVector<double>& vec, VectorTypeMPI& vecMPI, IndexS
 void element_copy(const SparseMatrix<double>& original, SparseMatrix<double>& copy );
 void read_blockvector(BlockVector<double>& vec, std::string filename, int n_blocks);
 void write_blockvector(BlockVector<double>& vec, std::string filename, int n_blocks);
+void print_shape(VectorTypeMPI &vec);
 
 double Hadamard(const SparseMatrix<double>& A, const SparseMatrix<double>& B) {
   double sum=0;
@@ -128,6 +129,16 @@ void write_blockvector(BlockVector<double>& vec, std::string filename, int n_blo
     std::ofstream data_out(filename+std::to_string(i)+".txt");
     vec.block(i).block_write(data_out);
   }
+}
+
+
+void print_shape(VectorTypeMPI &vec){
+    std::cout << "Number of blocks: " << vec.n_blocks() << std::endl;
+    for (unsigned int b = 0; b < vec.n_blocks(); ++b)
+        std::cout << "  Block " << b << " size = " << vec.block(b).size()
+                  << " (local=" << vec.block(b).locally_owned_size() << ")"
+                  << std::endl;
+    std::cout << "Total global size: " << vec.size() << std::endl;
 }
 
 

@@ -7,14 +7,18 @@ Implementation of the SSFEM pipeline relying on the __Deal-II__ C++ library test
 ### Activate the ssfem python environment
 
 ```
-source ./ssfem/bin/activate
+python3.9 -m venv ssfem
+source ssfem/bin/activate
+python --version           # should show Python 3.9.x
+pip install -r requirements.txt
 ```
 
 ### build the code
 
 ```
 cd build
-cmake -DCMAKE_BUILD_TYPE=Release -Dpybind11_DIR={PATH_TO_PYBIND11} ..
+export PYBIND11_DIR=$(python -m pybind11 --cmakedir)
+cmake -DCMAKE_BUILD_TYPE=Release -Dpybind11_DIR="$PYBIND11_DIR" ..
 make
 ```
 

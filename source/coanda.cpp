@@ -601,7 +601,6 @@ void StationaryCoanda::assemble() {
   return;
 }
 
-
 void StationaryCoanda:: compute_linear_residual(const VectorTypeMPI& X, VectorTypeMPI& F) {
   MatrixType X_mat(sparsity_pattern_dense);
   MatrixType F_mat(sparsity_pattern_dense);
@@ -809,16 +808,21 @@ void StationaryCoanda::solve_system(int max_iter, std::string solver_type, std::
   linesearch->set("Full Step", *fullstep.get());
   linesearch->set("Backtrack", *backtrack.get());
   parameters_nox->set("Line Search", *linesearch.get());
-
+  pcout<<"data_nox:"<<std::endl;
   //------------------------------------------DATA_NOX--------------------------------------------------
   TrilinosWrappers::NOXSolver<VectorTypeMPI>::AdditionalData data_nox;
   data_nox.max_iter = max_iter;
   data_nox.abs_tol = abs_tolerance;
   data_nox.rel_tol = rel_tolerance;
+  pcout<<"solver:"<<std::endl;
   //------------------------------------------SOLVER--------------------------------------------------
   NonlinearSolverSelector<VectorTypeMPI> solver(data);
   solver.set_data(data_nox, parameters_nox);
-  
+
+  //----------------------------reinit_vector----------------------------
+  solver.reinit_vector = [&](VectorTypeMPI &x) {
+    x.reinit(block_locally_owned_dofs_PC, mpi_communicator);};
+  pcout<<"residual:"<<std::endl;
   // ------residual------
   solver.residual = [&](const VectorTypeMPI &X, VectorTypeMPI &F) -> void {
     if (verbose) {
@@ -834,14 +838,14 @@ void StationaryCoanda::solve_system(int max_iter, std::string solver_type, std::
     F.add(-1, system_rhs_vec);
     F.compress(VectorOperation::add);
   };
-
+  pcout<<"jacobian:"<<std::endl;
   // ------setup_jacobian-------
   solver.setup_jacobian = [&](const VectorTypeMPI &X) -> void {
     if (verbose)
       pcout<<"setup_jacobian"<<std::endl;
     compute_jacobian(X);
   };
-  
+  pcout<<"solve_w_jacobian:"<<std::endl;
   // ------solve_with_jacobian------
   solver.solve_with_jacobian = [&](const VectorTypeMPI &rhs, VectorTypeMPI & dst, const double tolerance) {
     if (verbose)
@@ -865,8 +869,9 @@ void StationaryCoanda::solve_system(int max_iter, std::string solver_type, std::
     } catch(std::exception& e) {}
     vec_to_vecMPI(dst_, dst, locally_owned_dofs_PC);
   };
-  
+  pcout<<"assemble:"<<std::endl;
   assemble();
+  pcout<<"load_init:"<<std::endl;
   if (load_initial_guess) {
     read_blockvector(serial_solution_vec, "initial_guess", n_blocks_to_load);
     vec_to_vecMPI(serial_solution_vec, solution_vec, locally_owned_dofs_PC);
@@ -874,10 +879,15 @@ void StationaryCoanda::solve_system(int max_iter, std::string solver_type, std::
   }
   else {
     solution_vec=init_value;
+    //pcout<<"solution_vec:"<<std::endl;
+    //print_shape(solution_vec);
     solution_vec.compress(VectorOperation::insert);
   }
+  pcout<<"solver_solve:"<<std::endl;
   solver.solve(solution_vec);
+  pcout<<"vet_to_mat:"<<std::endl;
   vec_to_mat(solution_vec, solution, locally_owned_dofs);
+  pcout<<"mpi:"<<std::endl;
   Utilities::MPI::sum(solution.block(0,0), mpi_communicator, solution.block(0,0));
   Utilities::MPI::sum(solution.block(1,0), mpi_communicator, solution.block(1,0));
   mat_to_vec(solution, serial_solution_vec);
