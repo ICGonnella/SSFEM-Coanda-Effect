@@ -33,8 +33,7 @@ mpirun -np 4 python test.py
 ```
 # Serial code
 
-Recommended for small to moderately sized meshes.  
-For moderate mesh sizes, the serial version is often faster because it avoids parallel communication overhead and can fully exploit the direct linear solvers available in the deal.II library.
+Recommended for small to moderately sized meshes. For moderate mesh sizes, the serial version is often faster because it avoids parallel communication overhead and can fully exploit the direct linear solvers available in the deal.II library.
 
 ### build the serial code
 
