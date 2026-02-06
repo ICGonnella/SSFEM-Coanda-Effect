@@ -13,6 +13,8 @@ python --version           # should show Python 3.9.x
 pip install -r requirements.txt
 ```
 
+# Parallel code
+
 ### build the parallel code
 
 ```
@@ -21,7 +23,6 @@ export PYBIND11_DIR=$(python -m pybind11 --cmakedir)
 cmake -DCMAKE_BUILD_TYPE=Release -Dpybind11_DIR="$PYBIND11_DIR" ..
 make
 ```
-# Parallel code
 
 Recommended for large meshes and computationally intensive simulations.
 
@@ -30,6 +31,10 @@ Recommended for large meshes and computationally intensive simulations.
 ```
 mpirun -np 4 python test.py
 ```
+# Serial code
+
+Recommended for small to moderately sized meshes.  
+For moderate mesh sizes, the serial version is often faster because it avoids parallel communication overhead and can fully exploit the direct linear solvers available in the deal.II library.
 
 ### build the serial code
 
@@ -41,9 +46,6 @@ cmake -DCMAKE_BUILD_TYPE=Release -Dpybind11_DIR="$PYBIND11_DIR" ..
 make
 cd ..
 ```
-
-Recommended for small to moderately sized meshes.  
-For moderate mesh sizes, the serial version is often faster because it avoids parallel communication overhead and can fully exploit the direct linear solvers available in the deal.II library.
 
 ### run the serial code
 
