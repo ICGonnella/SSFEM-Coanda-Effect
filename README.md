@@ -17,14 +17,14 @@ pip install -r requirements.txt
 
 ### build the parallel code
 
+Recommended for large meshes and computationally intensive simulations.
+
 ```
 cd build
 export PYBIND11_DIR=$(python -m pybind11 --cmakedir)
 cmake -DCMAKE_BUILD_TYPE=Release -Dpybind11_DIR="$PYBIND11_DIR" ..
 make
 ```
-
-Recommended for large meshes and computationally intensive simulations.
 
 ### run the code in parallel
 
