@@ -1,0 +1,18 @@
+# Listing of Parameters
+# ---------------------
+subsection NavierStokes
+  set Finite element degree         = 1
+  set Force term                    = 0
+  set Output file                   = coanda.vtu
+  set Constants                     =
+  set Mesh file                     = ../mesh/mesh06.msh
+  set Solver Type                   = nox
+  set Solution Strategy             = newton
+  set Max iteration number          = 1000
+  set Number of global refinements  = 5
+  set Nonlinear solver tolerance    = 1e-10
+  set NPC                           = 2
+  set Init solution                 = 0.0
+  set Number of init blocks to load = 0
+  set npc of the saved solution     = 5
+end
